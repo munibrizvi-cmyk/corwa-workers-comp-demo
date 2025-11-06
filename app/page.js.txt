@@ -4,10 +4,376 @@ import React, { useState } from 'react'
 import { Upload, FileText, CheckCircle, AlertCircle, RefreshCw, Zap } from 'lucide-react'
 
 export default function CorwaWorkerCompApp() {
-  // [PASTE THE ENTIRE REACT CODE HERE - starting from const [policyFile...] ]
-  // All the useState hooks and functions
-  
+  const [policyFile, setPolicyFile] = useState(null)
+  const [claimFile, setClaimFile] = useState(null)
+  const [policyText, setPolicyText] = useState('')
+  const [claimText, setClaimText] = useState('')
+  const [adjudication, setAdjudication] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [caseType, setCaseType] = useState('approved')
+
+  const samplePolicy = `Workers' Compensation Insurance Policy - California MTUS
+Issued by: Berkshire Insurance
+Coverage: All injury types
+
+COVERAGE GUIDELINES:
+- Musculoskeletal injuries: Conservative management approved
+- Physical therapy: 2x/week standard protocol
+- Medications: NSAIDs and muscle relaxants approved`
+
+  const fullClaimApproved = `WORKERS' COMPENSATION VISIT NOTE
+Date: 10/21/2025
+Patient: Michael Rodriguez, DOB: 02/11/1986 (39 years old, Male)
+Chief Complaint: Severe lower back spasm from lifting
+
+HISTORY: Onset: 10/19/2025, Pain: 7/10
+
+DIAGNOSIS: M62.830 - Muscle spasm of back
+
+Provider: Dr. Laura H. Kim, DO`
+
+  const claimDeQuervain = `WORKERS' COMPENSATION CLINICAL NOTE
+Date of Visit: 10/21/2025
+Patient: Kimberly R., DOB: 06/15/1987 (38 years old, Female)
+Chief Complaint: Right wrist pain after patient transfer
+
+HISTORY: Onset: 09/28/2025, Pain: 5/10 baseline
+
+ASSESSMENT: Right wrist de Quervain's tenosynovitis - work-related
+
+Provider: Dr. Abdullah Sarkar, MD`
+
+  const claimLumbar = `WORKERS' COMPENSATION CLINICAL NOTE
+Date of Visit: 10/21/2025
+Patient: Jonathan M., DOB: 08/10/1983 (42 years old, Male)
+Chief Complaint: Lower back pain from heavy lifting
+
+HISTORY: Onset: 10/08/2025, Pain from 70 lb package
+
+ASSESSMENT: Acute mechanical low back strain - work-related
+
+Provider: Dr. Abdullah Sarkar, MD`
+
+  const claimThoracic = `WORKERS' COMPENSATION CLINICAL NOTE
+Date of Visit: 10/21/2025
+Patient: Robert D., DOB: 12/20/1995 (29 years old, Male)
+Chief Complaint: Mild upper back soreness
+
+HISTORY: Onset: 10/03/2025 after unloading packages, Pain: 3/10
+
+ASSESSMENT: Mild thoracic paraspinal strain - work-related
+
+Provider: Dr. Abdullah Sarkar, MD`
+
+  const fullClaimRejected = `WORKERS' COMPENSATION VISIT NOTE
+Date: 10/21/2025
+Patient: James Patterson, DOB: 05/15/1979 (45 years old, Male)
+Chief Complaint: Lower back pain
+
+HISTORY: Prior back surgery in 2022, Pain: 3/10
+
+ASSESSMENT: Pre-existing condition
+
+Provider: Dr. Steven Wong, MD`
+
+  const handleFileUpload = async (e, type) => {
+    const file = e.target.files[0]
+    if (!file) return
+    try {
+      const text = await file.text()
+      if (type === 'policy') {
+        setPolicyFile(file)
+        setPolicyText(text)
+      } else {
+        setClaimFile(file)
+        setClaimText(text)
+      }
+    } catch (error) {
+      alert('Error reading file.')
+    }
+  }
+
+  const loadSampleData = (type) => {
+    setPolicyText(samplePolicy)
+    setPolicyFile({ name: 'sample-policy.txt' })
+    
+    if (type === 'approved') setClaimText(fullClaimApproved)
+    else if (type === 'rejected') setClaimText(fullClaimRejected)
+    else if (type === 'deQuervain') setClaimText(claimDeQuervain)
+    else if (type === 'lumbar') setClaimText(claimLumbar)
+    else if (type === 'thoracic') setClaimText(claimThoracic)
+    
+    setCaseType(type)
+    setClaimFile({ name: `sample-claim-${type}.txt` })
+    setAdjudication(null)
+  }
+
+  const analyzeAdjudication = () => {
+    if (!policyText || !claimText) {
+      alert('Please load both documents')
+      return
+    }
+
+    setLoading(true)
+
+    setTimeout(() => {
+      const ageMatch = claimText.match(/DOB.*?(\d+)\s*(?:years|yo)/i)
+      const age = ageMatch ? ageMatch[1] : 'N/A'
+      
+      const genderMatch = claimText.match(/\(.*?(Male|Female)/i)
+      const gender = genderMatch ? genderMatch[1] : 'Not specified'
+      
+      const dateMatch = claimText.match(/Date.*?(\d{1,2}\/\d{1,2}\/\d{4})/i)
+      const visitDate = dateMatch ? dateMatch[1] : 'N/A'
+      
+      const nameMatch = claimText.match(/Patient:\s*([^,]+)/i)
+      const patientName = nameMatch ? nameMatch[1] : 'N/A'
+
+      const chiefMatch = claimText.match(/Chief Complaint:\s*([^\n]+)/i)
+      const chiefComplaint = chiefMatch ? chiefMatch[1] : 'N/A'
+
+      let result = {}
+
+      if (caseType === 'rejected') {
+        result = {
+          patientInfo: { name: patientName, age, gender, visitDate },
+          status: 'DENIED',
+          confidence: '92%',
+          reason: 'Pre-existing condition. Prior surgery 2022.',
+          denialReasons: [
+            'Pre-existing chronic degenerative disc disease',
+            'Prior fusion surgery 2022',
+            'Pain inconsistent with acute injury',
+            'Full range of motion indicates chronic condition'
+          ]
+        }
+      } else if (caseType === 'deQuervain') {
+        result = {
+          patientInfo: { name: patientName, age, gender, visitDate },
+          status: 'APPROVED',
+          confidence: '95%',
+          reason: 'Acute wrist tenosynovitis from occupational lifting.',
+          treatments: ['Thumb spica splint', 'Naproxen 500mg BID', 'Occupational Therapy 2x/week', 'Light duty']
+        }
+      } else if (caseType === 'lumbar') {
+        result = {
+          patientInfo: { name: patientName, age, gender, visitDate },
+          status: 'APPROVED',
+          confidence: '96%',
+          reason: 'Clear acute mechanical low back strain from heavy lifting.',
+          treatments: ['Light duty restrictions', 'Ibuprofen 600mg TID', 'Physical Therapy 2x/week', 'Heat therapy']
+        }
+      } else if (caseType === 'thoracic') {
+        result = {
+          patientInfo: { name: patientName, age, gender, visitDate },
+          status: 'APPROVED',
+          confidence: '88%',
+          reason: 'Mild thoracic strain. FLAG: 3-week restriction seems excessive for 3/10 pain.',
+          treatments: ['Light duty', 'Ibuprofen 400mg q6h', 'Home stretching', 'Review restrictions']
+        }
+      } else {
+        result = {
+          patientInfo: { name: patientName, age, gender, visitDate },
+          status: 'APPROVED',
+          confidence: '98%',
+          reason: 'Acute occupational back strain meets all policy requirements.',
+          treatments: ['7 days modified duty', 'Ibuprofen 600mg', 'Physical Therapy', 'X-ray imaging']
+        }
+      }
+
+      setAdjudication(result)
+      setLoading(false)
+    }, 1500)
+  }
+
+  const resetApp = () => {
+    setPolicyFile(null)
+    setClaimFile(null)
+    setPolicyText('')
+    setClaimText('')
+    setAdjudication(null)
+  }
+
+  const isApproved = adjudication?.status === 'APPROVED'
+
   return (
-    // [Return the JSX]
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
+        <div className="absolute top-1/2 right-1/4 w-96 h-96 bg-blue-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute bottom-0 left-1/2 w-96 h-96 bg-indigo-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{ animationDelay: '4s' }}></div>
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto px-6 py-12">
+        <div className="text-center mb-12">
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg blur opacity-75 animate-pulse"></div>
+              <div className="relative bg-gradient-to-br from-purple-600 to-blue-600 px-4 py-3 rounded-lg">
+                <span className="text-2xl font-black">⚡</span>
+              </div>
+            </div>
+            <div>
+              <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-blue-400 to-purple-400 tracking-tight">CORWA</h1>
+              <p className="text-purple-300 text-sm font-semibold">AI Document Intelligence</p>
+            </div>
+          </div>
+          
+          <h2 className="text-4xl font-bold text-white mb-2">Workers Compensation</h2>
+          <p className="text-xl text-purple-200 font-light">AI-Powered Adjudication Engine</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="group relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
+              <div className="relative bg-slate-800 border border-purple-500/30 rounded-2xl p-8 backdrop-blur-xl">
+                <div className="flex items-center mb-6">
+                  <div className="p-3 bg-gradient-to-br from-purple-600 to-purple-700 rounded-lg mr-4">
+                    <FileText className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-white">Insurance Policy</h3>
+                </div>
+                
+                <div className="border-2 border-dashed border-purple-400/50 rounded-xl p-8 text-center mb-4 hover:border-purple-400 hover:bg-purple-500/5 transition cursor-pointer">
+                  <input type="file" accept=".pdf,.txt,.docx" onChange={(e) => handleFileUpload(e, 'policy')} className="hidden" id="policy-upload" />
+                  <label htmlFor="policy-upload" className="cursor-pointer">
+                    <Upload className="w-12 h-12 text-purple-400 mx-auto mb-3" />
+                    <p className="text-white font-semibold">Upload Policy</p>
+                    <p className="text-purple-300 text-sm mt-2">PDF, TXT, or DOCX</p>
+                  </label>
+                </div>
+                
+                {policyFile && <div className="flex items-center text-green-400 bg-green-500/10 p-3 rounded-lg border border-green-500/30"><CheckCircle className="w-5 h-5 mr-2" /><span>{policyFile.name}</span></div>}
+              </div>
+            </div>
+
+            <div className="group relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
+              <div className="relative bg-slate-800 border border-blue-500/30 rounded-2xl p-8 backdrop-blur-xl">
+                <div className="flex items-center mb-6">
+                  <div className="p-3 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg mr-4">
+                    <FileText className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-white">Medical Records</h3>
+                </div>
+                
+                <div className="border-2 border-dashed border-blue-400/50 rounded-xl p-8 text-center mb-4 hover:border-blue-400 hover:bg-blue-500/5 transition cursor-pointer">
+                  <input type="file" accept=".pdf,.txt,.docx" onChange={(e) => handleFileUpload(e, 'claim')} className="hidden" id="claim-upload" />
+                  <label htmlFor="claim-upload" className="cursor-pointer">
+                    <Upload className="w-12 h-12 text-blue-400 mx-auto mb-3" />
+                    <p className="text-white font-semibold">Upload Claim/Records</p>
+                    <p className="text-blue-300 text-sm mt-2">PDF, TXT, or DOCX</p>
+                  </label>
+                </div>
+                
+                {claimFile && <div className="flex items-center text-green-400 bg-green-500/10 p-3 rounded-lg border border-green-500/30"><CheckCircle className="w-5 h-5 mr-2" /><span>{claimFile.name}</span></div>}
+              </div>
+            </div>
+
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={() => loadSampleData('approved')} className="flex-1 min-w-fit relative group">
+                <div className="absolute inset-0 bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl blur opacity-50 group-hover:opacity-75 transition"></div>
+                <div className="relative bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-2 text-sm"><CheckCircle className="w-4 h-4" />Back</div>
+              </button>
+              <button onClick={() => loadSampleData('rejected')} className="flex-1 min-w-fit relative group">
+                <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-orange-600 rounded-xl blur opacity-50 group-hover:opacity-75 transition"></div>
+                <div className="relative bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-2 text-sm"><AlertCircle className="w-4 h-4" />Denied</div>
+              </button>
+              <button onClick={() => loadSampleData('deQuervain')} className="flex-1 min-w-fit relative group">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-xl blur opacity-50 group-hover:opacity-75 transition"></div>
+                <div className="relative bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-2 text-sm"><CheckCircle className="w-4 h-4" />Wrist</div>
+              </button>
+              <button onClick={() => loadSampleData('lumbar')} className="flex-1 min-w-fit relative group">
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl blur opacity-50 group-hover:opacity-75 transition"></div>
+                <div className="relative bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-2 text-sm"><CheckCircle className="w-4 h-4" />Lumbar</div>
+              </button>
+              <button onClick={() => loadSampleData('thoracic')} className="flex-1 min-w-fit relative group">
+                <div className="absolute inset-0 bg-gradient-to-r from-yellow-600 to-orange-600 rounded-xl blur opacity-50 group-hover:opacity-75 transition"></div>
+                <div className="relative bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 text-white font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-2 text-sm"><AlertCircle className="w-4 h-4" />Thoracic</div>
+              </button>
+              <button onClick={analyzeAdjudication} disabled={loading || !policyText || !claimText} className="flex-1 min-w-fit relative group disabled:opacity-50">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-xl blur opacity-50 group-hover:opacity-75 group-disabled:opacity-0 transition"></div>
+                <div className="relative bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 disabled:from-slate-600 disabled:to-slate-600 text-white font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-2 text-sm">{loading ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div> : <Zap className="w-4 h-4" />}{loading ? 'Analyzing' : 'Analyze'}</div>
+              </button>
+            </div>
+          </div>
+
+          <div className="lg:col-span-3">
+            {adjudication && (
+              <div className="space-y-6">
+                <div className={`rounded-2xl p-8 backdrop-blur-xl border ${isApproved ? 'bg-gradient-to-br from-green-900/40 to-emerald-900/40 border-green-500/50' : 'bg-gradient-to-br from-red-900/40 to-orange-900/40 border-red-500/50'}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {isApproved ? <CheckCircle className="w-12 h-12 text-green-400" /> : <AlertCircle className="w-12 h-12 text-red-400" />}
+                      <div>
+                        <h3 className={`text-3xl font-black ${isApproved ? 'text-green-300' : 'text-red-300'}`}>{adjudication.status}</h3>
+                        <p className={`text-sm ${isApproved ? 'text-green-200' : 'text-red-200'}`}>{isApproved ? 'Policy Compliant' : 'Coverage Not Available'}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-2xl font-bold ${isApproved ? 'text-green-400' : 'text-red-400'}`}>{adjudication.confidence}</p>
+                      <p className={`text-xs uppercase ${isApproved ? 'text-green-200' : 'text-red-200'}`}>Confidence</p>
+                    </div>
+                  </div>
+                  <p className={`text-lg font-semibold mt-4 ${isApproved ? 'text-green-100' : 'text-red-100'}`}>{adjudication.reason}</p>
+                  
+                  {adjudication.denialReasons && (
+                    <div className="mt-4 pt-4 border-t border-red-500/30">
+                      <p className="text-red-200 font-semibold text-sm mb-3">Denial Reasons:</p>
+                      <ul className="space-y-2">
+                        {adjudication.denialReasons.map((reason, idx) => (
+                          <li key={idx} className="text-sm text-red-100 flex gap-2">
+                            <span className="text-red-400">•</span>
+                            <span>{reason}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-slate-800 border border-purple-500/30 rounded-xl p-4 backdrop-blur-xl">
+                    <p className="text-purple-300 text-xs uppercase font-bold mb-1">Patient</p>
+                    <p className="text-white font-semibold text-sm">{adjudication.patientInfo.name}</p>
+                  </div>
+                  <div className="bg-slate-800 border border-purple-500/30 rounded-xl p-4 backdrop-blur-xl">
+                    <p className="text-purple-300 text-xs uppercase font-bold mb-1">Age</p>
+                    <p className="text-white font-semibold text-sm">{adjudication.patientInfo.age}</p>
+                  </div>
+                  <div className="bg-slate-800 border border-purple-500/30 rounded-xl p-4 backdrop-blur-xl">
+                    <p className="text-purple-300 text-xs uppercase font-bold mb-1">Gender</p>
+                    <p className="text-white font-semibold text-sm">{adjudication.patientInfo.gender}</p>
+                  </div>
+                  <div className="bg-slate-800 border border-purple-500/30 rounded-xl p-4 backdrop-blur-xl">
+                    <p className="text-purple-300 text-xs uppercase font-bold mb-1">Date</p>
+                    <p className="text-white font-semibold text-sm">{adjudication.patientInfo.visitDate}</p>
+                  </div>
+                </div>
+
+                {adjudication.treatments && (
+                  <div className="bg-slate-800 border border-green-500/30 rounded-2xl p-6 backdrop-blur-xl">
+                    <h4 className="font-bold text-green-300 mb-4 text-xs uppercase">Approved Treatments</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {adjudication.treatments.map((treatment, idx) => (
+                        <div key={idx} className="bg-green-900/30 border border-green-500/50 p-3 rounded-lg">
+                          <p className="text-sm text-green-100">{treatment}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <button onClick={resetApp} className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2">
+                  <RefreshCw className="w-5 h-5" />
+                  Start New Analysis
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

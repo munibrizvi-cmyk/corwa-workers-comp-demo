@@ -1,11 +1,13 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+import './globals.css'
+
+export const metadata = {
+  title: 'CORWA Workers Comp',
 }
 
-body {
-  background: linear-gradient(to right, #0f172a, #581c87, #0f172a);
-  color: white;
-  font-family: system-ui, -apple-system, sans-serif;
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  )
 }

@@ -1,4 +1,22 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {}
+const nextConfig = {
+  reactStrictMode: true,
+}
 
 module.exports = nextConfig
+```
+
+5. Save and close
+
+---
+
+### Step 5: Create .gitignore
+
+1. Create new file: **`.gitignore`** (starts with dot)
+2. Paste:
+```
+node_modules/
+.next/
+.env
+.env.local
+.vercel
